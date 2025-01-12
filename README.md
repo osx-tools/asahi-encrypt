@@ -71,12 +71,16 @@ three actions are assumed, i.e.: mount, encrypt, unmount
 **1. Shrink root filesystem by 32M**
 It is required to accomodate LUKS header when partition will be encrypted.
 
-\# btrfs filesystem resize -32M /mnt
+``` sh
+btrfs filesystem resize -32M /mnt
+```
 
 **2. Encrypt root partition inplace**
 The root partition is encrypted, partition data will be preserved.
 
-\# cryptsetup reencrypt --encrypt --reduce-device-size 32M /dev/nvme0n1p6
+``` sh
+cryptsetup reencrypt --encrypt --reduce-device-size 32M /dev/nvme0n1p6
+```
 
 **3. Configure target system**
 A record for encripted root partition is added to **/etc/crypttab**.
@@ -87,8 +91,10 @@ This is necessary to propagate the changes we've made to the components
 responsible for booting the target system, so that the root partition
 is decrypted at the boot time.
 
-\# chroot /mnt grub2-mkconfig -o /boot/grub2/grub.cfg
-\# chroot /mnt dracut -f --kver {KERNEL_VERSION}
+``` sh
+chroot /mnt grub2-mkconfig -o /boot/grub2/grub.cfg
+chroot /mnt dracut -f --kver {KERNEL_VERSION}
+```
 
 `--kver {KERNEL_VERSION}` is needed if the kernels in the running and
 target system has different versions. The script detects the last
@@ -99,7 +105,9 @@ command.
 Without this step system most likely won't boot. Temporarily add
 `enforsing=0` to kernel parameters.
 
-\# chroot /mnt grubby --update-kernel ALL --args enforcing=0
+``` sh
+chroot /mnt grubby --update-kernel ALL --args enforcing=0
+```
 
 Then we schedule rebuilding initramfs on the first boot of the target
 system, which reset this enforcing parameter and adjust selinux. The
@@ -120,27 +128,41 @@ maintenance jobs of the main installation(s).
 First you need to clone the repository ro your USB stick or Rescue OS
 (described above):
 
-\# git clone https://github.com/osx-tools/asahi-encrypt.git
+``` sh
+git clone https://github.com/osx-tools/asahi-encrypt.git
+```
 
 Assuming you have booted from the Resque OS or USB stick. Navigate to
 `./asahi-encrypt/bin` directory and run:
 
-\# ./asahi-encrypt -l
+``` sh
+./asahi-encrypt -l
+```
+``` txt
 /dev/nvme0n1p6 btrfs 115.4G fedora
+```
 
 As you can see I have one installation of Asahi Linux on this machine,
 which is unencrypted, because it is displayed as `btrfs`. Script will
 not show your current running os, because encription of running system
 is prohibited. Then we just encrypt this partition with one command:
 
-\# ./asahi-encrypt /dev/nvme0n1p6
+``` sh
+./asahi-encrypt /dev/nvme0n1p6
+```
+``` txt
+```
 
 You'll be asked for your password if you are running as a regular user,
 and a passphrase to encrypt the root partition of the target system.
 After the script finishes, you see that now it is encrypted:
 
-\# ./asahi-encrypt -l
+``` sh
+./asahi-encrypt -l
+```
+``` txt
 /dev/nvme0n1p6 crypto_LUKS 115.4G
+```
 
 Now you can boot to your encrypted system. During the boot you'll be
 asked for the passphrase to decrypt root.
@@ -153,28 +175,46 @@ and unmount the other installations of Asahi Linux on `/mnt` of your
 currently running system. To do so let's find available installations
 as in the previous example:
 
-\# ./asahi-encrypt -l
+``` sh
+./asahi-encrypt -l
+```
+``` txt
 /dev/nvme0n1p6  crypto_LUKS 115.4G
 /dev/nvme0n1p10 btrfs        89.3G fedora
+```
 
 You can also use extended view of all your partitions using `lsblk`:
 
-\# lsblk -f
+``` sh
+lsblk -f
+```
+``` txt
+```
 
 After choosing which target system you want to mount, issue command:
 
-\# ./asahi-encrypt /dev/nvme0n1p10 -m
+``` sh
+./asahi-encrypt /dev/nvme0n1p10 -m
+```
+``` txt
+```
 
 You will be asked sudo password if running as a regular user and a
 passphrase if the target system is encrypted. Now you can chroot to
 your target system:
 
-\# chroot /mnt
+``` sh
+chroot /mnt
+```
 
 Do the configuration or maintenance jobs, and after that, run the
 following command to unmount the target system:
 
-\# ./asahi-encrypt /dev/nvme0n1p10 -u
+``` sh
+./asahi-encrypt /dev/nvme0n1p10 -u
+```
+``` txt
+```
 
 Now the target system is unmounted and you can reboot.
 
