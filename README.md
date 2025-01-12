@@ -39,15 +39,17 @@ the script.
 Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
-  Where /dev/nvme0n1p{N} is the root partition of Asahi linux installation,
-the installation is expected to consist of four partitions:
-    /dev/nvme0n1p{N-3} - 2.5G Macos Boot Loader APFS partition (aka Stub-Macos)
-    /dev/nvme0n1p{N-2} - 500M EFI partition
-    /dev/nvme0n1p{N-1} - 1.0G Boot partition
-    /dev/nvme0n1p{N}   -      Root partition, that will be encrypted
+  Where /dev/nvme0n1p{N} is the root partition of Asahi linux
+installation, the installation is expected to consist of four
+partitions:
+    /dev/nvme0n1p{N-3} - 2.5G apfs  Macos Boot Loader
+    /dev/nvme0n1p{N-2} - 500M vfat  EFI
+    /dev/nvme0n1p{N-1} - 1.0G ext4  Boot
+    /dev/nvme0n1p{N}   -      btrfs Root (will be encrypted)
 
-  You can easily determine suitable root partitions using 'asahi-encrypt -l'
-or 'lsblk -f' command. Root partitions usually have label 'fedora'.
+  You can easily determine suitable root partitions using
+'asahi-encrypt -l' or 'lsblk -f' command. Root partitions usually
+has 'fedora' label.
 
 OPTIONS:
     -m  - Just mount target system to /mnt
@@ -56,8 +58,8 @@ OPTIONS:
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
-  If none of '-m', '-e', '-u' options given, all three actions implied, i.e.:
-mount, encrypt, unmount
+  If none of '-m', '-e', '-u' options given, all three
+actions implied, i.e.: mount, encrypt, unmount
 
 ```
 
