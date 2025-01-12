@@ -35,12 +35,12 @@ the script.
 
 # USAGE
 
-```ini
+``` ini
 Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
   Where /dev/nvme0n1p{N} is the root partition of Asahi linux
-installation, the installation is expected to consist of four
+installation. The installation is expected to consist of four
 partitions:
     /dev/nvme0n1p{N-3} - 2.5G apfs  Macos Boot Loader
     /dev/nvme0n1p{N-2} - 500M vfat  EFI
@@ -48,8 +48,9 @@ partitions:
     /dev/nvme0n1p{N}   -      btrfs Root (will be encrypted)
 
   You can easily determine suitable root partitions using
-'asahi-encrypt -l' or 'lsblk -f' command. Root partitions usually
-has 'fedora' label.
+one of the commands: 'asahi-encrypt -l' or 'lsblk -f'.
+Unencrypted root partitions of a typical Fedora Linux
+installation are usually labeled as 'fedora'.
 
 OPTIONS:
     -m  - Just mount target system to /mnt
