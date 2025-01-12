@@ -1,0 +1,11 @@
+Consider:
+https://gist.github.com/adamruzicka/c23ebd2884bd6bc6841440c8047f045c
+
+Related:
+https://github.com/NoisyCoil/encryptroot-asahi/
+
+Diskutil help:
+https://github.com/AsahiLinux/docs/wiki/Partitioning-cheatsheet
+
+Maybe comment here:
+https://github.com/AsahiLinux/asahi-installer/issues/137

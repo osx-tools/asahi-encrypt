@@ -1,0 +1,252 @@
+#!/bin/bash
+
+die() { echo -e "${0##*/}: ${1:-Error occured, see above}" >&2; exit 1; }
+msg() { echo ">>> $1"; }
+
+# Global vars
+CHROOT=/mnt
+LUKS_HDR_BYTES=$[ 32*1024*1024 ]
+USAGE_SHORT="Usage: ${0##*/} /dev/nvme0n1p{N} [OPTIONS]"
+CUR_ROOT=`findmnt -nvo SOURCE -M /` || die
+unset action_{mount,encrypt,umount} ARGS raw_dev dev size type uuid luks_name
+
+# Parsing command line
+while (( $# )); do
+    case $1 in
+        -h) cat <<-EOF
+$USAGE_SHORT
+       ${0##*/} -l [/dev/nvme0n1]
+
+  Where /dev/nvme0n1p{N} is the root partition of Asahi linux installation,
+the installation is expected to consist of four partitions:
+    /dev/nvme0n1p{N-3} - 2.5G Macos Boot Loader APFS partition (aka Stub-Macos)
+    /dev/nvme0n1p{N-2} - 500M EFI partition
+    /dev/nvme0n1p{N-1} - 1.0G Boot partition
+    /dev/nvme0n1p{N}   -      Root partition, that will be encrypted
+
+  You can easily determine suitable root partitions using '${0##*/} -l'
+or 'lsblk -f' command. Root partitions usually have label 'fedora'
+
+OPTIONS:
+    -m  - Just mount target system to $CHROOT
+    -e  - Just encrypt target system, implies '-m'
+    -u  - Just unmount target system from $CHROOT
+    -l  - List suitable root partitions and exit
+    -h  - Display this help
+
+  If none of '-m', '-e', '-u' options given, all three actions implied, i.e.:
+mount, encrypt, unmount
+
+EOF
+        exit
+        ;;
+        -m) action_mount=1;;
+        -e) action_encrypt=1;;
+        -u) action_umount=1;;
+        -l) action_list=1;;
+        -*) die "Unknown option: $1";;
+        *) ARGS+=( "$1" );;
+    esac
+    shift
+done
+
+# Checking arguments & initializing variables
+[[ ${#ARGS[@]} == 0 && $action_list || ${ARGS[0]} =~ ^(/dev/nvme[0-9]+n[0-9]+)(p([0-9]+))?$ ]] \
+    && base=${BASH_REMATCH[1]:-/dev/nvme0n1} R=${BASH_REMATCH[3]} \
+    || die "$USAGE_SHORT\nUse '-h' for help"
+(( ${#ARGS[@]} <= 1 )) \
+    || die "Extra arguments passed: ${ARGS[*]:1}"
+
+is_encrypted() { [[ ${type[R]} == crypto_LUKS ]]; }
+is_open() { [[ -b /dev/mapper/${luks_name[R]} ]]; }
+
+chroot_mount() {
+    local targets=( [R]="root: home:/home" [B]=":/boot" [E]=":/boot/efi" )
+    if  is_encrypted && ! is_open; then
+        msg "Opening encrypted root partition"
+        sudo cryptsetup open "${raw_dev[R]}" "${luks_name[R]}" || die "Failed to open LUKS partition: ${raw_dev[R]}"
+        dev[R]=/dev/mapper/${luks_name[R]}
+    fi
+    msg "Mounting filesystems on $CHROOT"
+    local n m spec vol target root mp fstype opts fstab=$CHROOT/etc/fstab ok
+    for n in $R $B $E; do
+        # If partition has subvolumes, handle each subvolume
+        for spec in ${targets[n]}; do
+            IFS=: read vol target <<<"$spec"
+            # Unmounting each partition/volume if it is mounted not to desired path
+            while read root mp; do
+                [[ $root == /$vol ]] || continue
+                [[ $mp != $target ]] || die "Inplace encryptiopn of a running system is not allowed!"
+                [[ $mp == $CHROOT$target ]] && continue 2 || sudo umount "$mp" || die
+            done <<<"`findmnt -no FSROOT,TARGET "${dev[n]}"`"
+            # Mounting each partition/volume to desired path
+            sudo mount ${vol:+-o subvol=$vol} "${dev[n]}" "$CHROOT$target" || die
+        done
+        (( n == R )) || continue
+        # Checking that the Boot and EFI partitions, selected by layout correspond to the fstab on the target system
+        for m in $B $E; do
+            mp=${targets[m]#:}
+            spec=`awk '$2 == "'$mp'" {print $1}' "$fstab"`
+            [[ $spec ]] || die "Mount path '$mp' not found in target system fstab: $fstab"
+            [[ ! $spec =~  [[:space:]]  ]] || die "Multiple mount paths for '$mp' found in target system fstab: $fstab"
+            [[ $spec == UUID=${uuid[m]} ]] \
+                || die "UUID=${uuid[m]} of selected by layout partition '${dev[m]}' for '$mp' differs from target system fstab's: $spec"
+        done
+    done
+    if  [[ $1 == --vfs ]]; then
+        # Mounting virtual filesystems
+        while read mp fstype opts; do
+            mountpoint -q "$CHROOT/$mp" || sudo mount -t "$fstype" -o "$opts" none "$CHROOT/$mp" || die
+        done << EOF
+proc proc nosuid,noexec,nodev
+sys sysfs nosuid,noexec,nodev,ro
+sys/firmware/efi/efivars efivarfs nosuid,noexec,nodev
+dev devtmpfs mode=0755,nosuid
+dev/pts devpts mode=0620,gid=5,nosuid,noexec
+dev/shm tmpfs mode=1777,nosuid,nodev
+run tmpfs nosuid,nodev,mode=0755
+tmp tmpfs mode=1777,strictatime,nodev,nosuid
+EOF
+    fi
+}
+
+chroot_umount() {
+    msg "Unmounting filesystems from $CHROOT"
+    ! mountpoint -q "$CHROOT" || sudo umount -R "$CHROOT" \
+        || die "Failed to recursively unmount directory: $CHROOT"
+    # Check if target partitions are mounted somewhere else
+    local mps=( `xargs -n1 findmnt -no TARGET <<<"${dev[E]} ${dev[B]} ${dev[R]}" | sort -r` )
+    [[ ! $mps ]] || sudo umount $mps || die "Failed to unmount some partitions"
+}
+
+read_partitions() {
+    local line kname=${base##*/}
+    local PKNAME PARTN SIZE TYPE FSTYPE UUID NAME
+    # Reading partition information
+    while read line; do
+        [[ $line != FAIL ]] || die "Failed to read partition information"
+        eval "$line"
+        if [[ $PKNAME == $kname ]]; then
+            raw_dev[PARTN]=${base}p$PARTN
+            dev[PARTN]=${raw_dev[PARTN]}
+            size[PARTN]=$SIZE
+            type[PARTN]=$FSTYPE
+            uuid[PARTN]=$UUID
+            luks_name[PARTN]=fedora-${UUID%%-*}
+        elif [[ $PKNAME =~ ^${kname}p([0-9]+)$ && $TYPE == crypt ]]; then
+            # If the partition has an open child crypt device, updating information
+            PARTN=${BASH_REMATCH[1]}
+            if  [[ ${type[PARTN]} == crypto_LUKS ]]; then
+                luks_name[PARTN]=$NAME
+                dev[PARTN]=/dev/mapper/$NAME
+            fi
+        fi
+    done <<<"`lsblk -nPbo PKNAME,PARTN,SIZE,TYPE,FSTYPE,UUID,NAME "$base"p[1-9]* || echo FAIL`"
+}
+
+check_installation() {
+    local R=$1 non_fatal=$2 e n
+    local exp_type=( "apfs" "vfat" "ext4" "btrfs|crypto_LUKS" )
+    [[ ${dev[R]} != $CUR_ROOT ]] || { [[ $non_fatal ]] && return 1; } \
+        || die "Inplace encryptiopn of a running system is not allowed!"
+    # Checking if root partition and 3 preceeding partitions have expected filesystem types
+    for (( e = 0; e < 4; e++ )); do
+        (( n = R - 3 + e ))
+        [[ ${type[n]} =~ ^(${exp_type[e]})$ ]] || { [[ $non_fatal ]] && return 1; } \
+            || die "Partition '${raw_dev[n]}' expected to be of type '${exp_type[e]//|/"' or '"}' but it is: ${type[n]}"
+        [[ ${size[n]} =~ ^[0-9]+$           ]] || { [[ $non_fatal ]] && return 1; } \
+            || die "Failed to determine size of partition ${raw_dev[n]}"
+    done
+}
+
+check_requirements() {
+    local bin
+    for bin in /usr/sbin/btrfs /usr/sbin/cryptsetup; do
+        [[ -x $bin ]] || die "Required binary is missing from the current system: $bin"
+    done
+    for bin in /usr/sbin/grub2-mkconfig /usr/bin/dracut /usr/sbin/grubby; do
+        [[ -x $CHROOT/$bin ]] || die "Failed to proceed, required binary is missing from the target system: $CHROOT/$bin"
+    done
+}
+
+asahi_encrypter() {
+    read_partitions
+    check_installation "$R"
+    # Encrypting root partition if it is not encrypted yet
+    if  [[ $action_encrypt && ${type[R]} == btrfs ]]; then
+        chroot_mount
+        check_requirements
+        fs_size=`lsblk -ndbo FSSIZE "${raw_dev[R]}"`
+        (( fs_size )) || die "Can't determine filesystem size of the root partition: ${raw_dev[R]}"
+        if  (( size[R] - fs_size < LUKS_HDR_BYTES )); then
+            msg "Shrinking root FS to accomodate LUKS header"
+            sudo btrfs filesystem resize $[size[R] - LUKS_HDR_BYTES] "$CHROOT" || die "Failed to resize root partition: ${raw_dev[R]}"
+        fi
+        chroot_umount
+        msg "Encrypting root partition inplace"
+        sudo cryptsetup reencrypt --encrypt --reduce-device-size "$LUKS_HDR_BYTES" "${raw_dev[R]}" || die "Failed to encrypt root partition"
+        type[R]=crypto_LUKS
+    fi
+    if  [[ $action_encrypt || $action_mount ]]; then
+        chroot_mount --vfs
+    fi
+    if  [[ $action_encrypt ]]; then
+        msg "Configuring encrypted system"
+        check_requirements
+        crypttab=$CHROOT/etc/crypttab
+        grubconf=$CHROOT/etc/default/grub
+        grub_cfg=/boot/grub2/grub.cfg
+        # Adding record to the crypttab
+        sudo tee -a "$crypttab" <<<"${luks_name[R]} UUID=${uuid[R]} none" >/dev/null && \
+        sudo sed -i "\$q;/^${luks_name[R]} /d;/ UUID=${uuid[R]} /d" "$crypttab" && \
+        sudo chmod 0600 "$crypttab" \
+            || die "Failed to configure crypttab"
+        # Adding LUKS UUID to grub config
+        sudo sed -ri "/^GRUB_CMDLINE_LINUX_DEFAULT=/{s/ rd.luks.uuid=[0-9a-f-]+//;s/=\"([^\"]*)\"/=\"\1 rd.luks.uuid=${uuid[R]}\"/}" "$grubconf" \
+            || die "Failed to configure GRUB"
+        msg "Regenerating initrd"
+        for kver in "$CHROOT"/boot/vmlinuz-*; do
+            kver=${kver#$CHROOT/boot/vmlinuz-}
+        done
+        sudo chroot "$CHROOT" grub2-mkconfig -o "$grub_cfg" && \
+        sudo chroot "$CHROOT" dracut -f --kver "$kver" \
+            || die "Failed to generate initrd"
+        msg "Disabling selinux enforcing for encrypted system until next boot"
+        sudo chroot "$CHROOT" grubby --update-kernel ALL --args enforcing=0 \
+            || die "Failed to temporarily disable selinux enforcement for encrypted system"
+        # Scheduling regeneration of initrd and reenabling selinux enforcing on next boot
+        sudo tee "$CHROOT"/etc/cron.d/post_encrypt_update >/dev/null \
+            <<< "@reboot root grub2-mkconfig -o $grub_cfg && dracut -f && rm /etc/cron.d/post_encrypt_update" \
+            || die "Unable to schedule enabling of selinux enforcing on the next boot for encrypted system"
+    fi
+    if  [[ $action_umount ]]; then
+        chroot_umount
+        if  is_encrypted && is_open; then
+            msg "Closing encrypted root partition"
+            sudo cryptsetup close "${luks_name[R]}" || die
+        fi
+    fi
+    msg "Done!"
+}
+
+asahi_finder() {
+    local R matched
+    read_partitions
+    for (( R = 4; R < ${#raw_dev[@]}; R++ )); do
+        ! check_installation "$R" non_fatal || matched+=( "${raw_dev[R]}" )
+    done
+    [[ ! $matched ]] || lsblk -ndo PATH,FSTYPE,SIZE,LABEL "${matched[@]}"
+}
+
+if  (( action_list )); then
+    [[ ! $R  ]] || die "Only whole device is allowed with option '-l', not a partition: ${ARGS[0]}"
+    asahi_finder
+else
+    [[   $R  ]] || die "Only partitions ars allowed for enctiption, not a whole device: ${ARGS[0]}"
+    (( R > 3 )) || die "Partition number should be greater than 4: ${ARGS[0]}"
+    # S, E, B, R - numbers of Stub-MacOS, EFI, Boot and Root partitions respectively
+    (( S=R-3, E=R-2, B=R-1 ))
+    (( action_mount || action_encrypt || action_umount )) || action_mount=1 action_encrypt=1 action_umount=1
+    asahi_encrypter
+fi
+
