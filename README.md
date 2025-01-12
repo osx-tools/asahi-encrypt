@@ -138,9 +138,9 @@ Assuming you have booted from the Resque OS or USB stick. Navigate to
 ``` sh
 ./asahi-encrypt -l
 ```
-``` txt
-/dev/nvme0n1p6 btrfs 115.4G fedora
-```
+>``` txt
+>/dev/nvme0n1p6 btrfs 115.4G fedora
+>```
 
 As you can see I have one installation of Asahi Linux on this machine,
 which is unencrypted, because it is displayed as `btrfs`. Script will
@@ -150,8 +150,8 @@ is prohibited. Then we just encrypt this partition with one command:
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p6
 ```
-``` txt
-```
+>``` txt
+>```
 
 You'll be asked for your password if you are running as a regular user,
 and a passphrase to encrypt the root partition of the target system.
@@ -160,9 +160,9 @@ After the script finishes, you see that now it is encrypted:
 ``` sh
 ./asahi-encrypt -l
 ```
-``` txt
-/dev/nvme0n1p6 crypto_LUKS 115.4G
-```
+>``` txt
+>/dev/nvme0n1p6 crypto_LUKS 115.4G
+>```
 
 Now you can boot to your encrypted system. During the boot you'll be
 asked for the passphrase to decrypt root.
@@ -178,26 +178,26 @@ as in the previous example:
 ``` sh
 ./asahi-encrypt -l
 ```
-``` txt
-/dev/nvme0n1p6  crypto_LUKS 115.4G
-/dev/nvme0n1p10 btrfs        89.3G fedora
-```
+>``` txt
+>/dev/nvme0n1p6  crypto_LUKS 115.4G
+>/dev/nvme0n1p10 btrfs        89.3G fedora
+>```
 
 You can also use extended view of all your partitions using `lsblk`:
 
 ``` sh
 lsblk -f
 ```
-``` txt
-```
+>``` txt
+>```
 
 After choosing which target system you want to mount, issue command:
 
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p10 -m
 ```
-``` txt
-```
+>``` txt
+>```
 
 You will be asked sudo password if running as a regular user and a
 passphrase if the target system is encrypted. Now you can chroot to
@@ -213,8 +213,8 @@ following command to unmount the target system:
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p10 -u
 ```
-``` txt
-```
+>``` txt
+>```
 
 Now the target system is unmounted and you can reboot.
 
