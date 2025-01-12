@@ -25,7 +25,7 @@ the installation is expected to consist of four partitions:
     /dev/nvme0n1p{N}   -      Root partition, that will be encrypted
 
   You can easily determine suitable root partitions using '${0##*/} -l'
-or 'lsblk -f' command. Root partitions usually have label 'fedora'
+or 'lsblk -f' command. Root partitions usually have label 'fedora'.
 
 OPTIONS:
     -m  - Just mount target system to $CHROOT

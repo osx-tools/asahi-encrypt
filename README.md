@@ -35,6 +35,7 @@ the script.
 
 # USAGE
 
+```ini
 Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
@@ -57,6 +58,8 @@ OPTIONS:
 
   If none of '-m', '-e', '-u' options given, all three actions implied, i.e.:
 mount, encrypt, unmount
+
+```
 
 # OPERATIONS
 
