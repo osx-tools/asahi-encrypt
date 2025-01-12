@@ -59,8 +59,8 @@ OPTIONS:
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
-  If none of '-m', '-e', '-u' options given, all three
-actions implied, i.e.: mount, encrypt, unmount
+  If none of the '-m', '-e', '-u' options are given, all
+three actions are assumed, i.e.: mount, encrypt, unmount
 
 ```
 
