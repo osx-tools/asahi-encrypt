@@ -168,12 +168,12 @@ Now you can boot to your encrypted system. During the boot you'll be
 asked for the passphrase to decrypt root.
 
 
-### Rescue / Maintenance example
+### Mount / Unmount example (Maintenance)
 
 Befor or after or independently of encrypting, you can always mount
-and unmount the other installations of Asahi Linux on `/mnt` of your
-currently running system. To do so let's find available installations
-as in the previous example:
+and unmount installations of Asahi Linux present on your machinr on
+`/mnt` of your currently running system. To do so let's find available
+installations as in the previous example:
 
 ``` sh
 ./asahi-encrypt -l
@@ -220,7 +220,7 @@ Now the target system is unmounted and you can reboot.
 
 # CREDITS
 
-https://davidalger.com/posts/fedora-asahi-remix-on-apple-silicon-with-luks-encryption
+[Fedora Asahi Remix with LUKS Encryption by David Alger](https://davidalger.com/posts/fedora-asahi-remix-on-apple-silicon-with-luks-encryption)
 
 # REPORTING BUGS
 
@@ -228,10 +228,11 @@ Bug tracker: https://github.com/osx-tools/asahi-encrypt/issues
 
 # COPYRIGHT
 
-Copyright (c) 2024 albert-a &lt;albert-a@github.com&gt;
-License:MIT &lt;https://mit-license.org&gt;
+Copyright (c) 2024 abert-a: albert-a@github.com
+
+License: MIT https://mit-license.org
 
 # SEE ALSO
 
-**btrfs-filesystem**(8), **chroot** **cryptsetup-reencrypt**(8), **crypttab**(5), 
+**btrfs-filesystem**(8), **chroot**(1), **cryptsetup-reencrypt**(8), **crypttab**(5),
 **dracut**(8), **grub2-mkconfig**(8).
