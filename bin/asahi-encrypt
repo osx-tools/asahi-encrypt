@@ -254,7 +254,7 @@ asahi_encrypter() {
             || die "Failed to temporarily disable selinux enforcement for the target system"
         # Scheduling regeneration of initrd and reenabling selinux enforcing on next boot
         sudo tee "$CHROOT"/etc/cron.d/post_encrypt_update >/dev/null \
-            <<< "@reboot root grub2-mkconfig -o $grub_cfg && dracut -f && rm /etc/cron.d/post_encrypt_update" \
+            <<< "@reboot root grub2-mkconfig -o $grub_cfg && dracut -f && setenforce 1 && rm /etc/cron.d/post_encrypt_update" \
             || die "Unable to schedule enabling of selinux enforcing on the next boot for target system"
     fi
     if  [[ $action_umount ]]; then

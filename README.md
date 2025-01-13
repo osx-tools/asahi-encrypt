@@ -223,7 +223,7 @@ Now the target system is unmounted and you can reboot.
 
 # REPORTING BUGS
 
-Bug tracker: https://github.com/osx-tools/asahi-encrypt/issues
+https://github.com/osx-tools/asahi-encrypt/issues
 
 # COPYRIGHT
 
