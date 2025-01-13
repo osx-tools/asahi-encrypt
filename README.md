@@ -66,27 +66,27 @@ three actions are assumed, i.e.: mount, encrypt, unmount
 
 # OPERATIONS
 
-### A brief description of what it does
+A brief description of what it does
 
-**1. Shrink root filesystem by 32M**
+## 1. Shrink root filesystem by 32M
 It is required to accomodate LUKS header when partition will be encrypted.
 
 ``` sh
 btrfs filesystem resize -32M /mnt
 ```
 
-**2. Encrypt root partition inplace**
+## 2. Encrypt root partition inplace
 The root partition is encrypted, partition data will be preserved.
 
 ``` sh
 cryptsetup reencrypt --encrypt --reduce-device-size 32M /dev/nvme0n1p6
 ```
 
-**3. Configure target system**
+## 3. Configure target system
 A record for encripted root partition is added to **/etc/crypttab**.
 Boot time kernel parameter is added to **/etc/default/grub**.
 
-**4. Rebuild initramfs on target system**
+## 4. Rebuild initramfs on target system
 This is necessary to propagate the changes we've made to the components
 responsible for booting the target system, so that the root partition
 is decrypted at the boot time.
@@ -101,7 +101,7 @@ target system has different versions. The script detects the last
 installed kernel version in the target system and passes it to the
 command.
 
-**5. Temporarily disable selinux enforcing**
+## 5. Temporarily disable selinux enforcing
 Without this step system most likely won't boot. Temporarily add
 `enforsing=0` to kernel parameters.
 
@@ -123,7 +123,7 @@ process I choose "Minimal system" and name it "Asahi Resque". I then
 can use it as a rescue system, for encriptyng, reconfiguring and do the
 maintenance jobs of the main installation(s).
 
-### Usage example
+## Usage example
 
 First you need to clone the repository ro your USB stick or Rescue OS
 (described above):
@@ -167,8 +167,7 @@ After the script finishes, you see that now it is encrypted:
 Now you can boot to your encrypted system. During the boot you'll be
 asked for the passphrase to decrypt root.
 
-
-### Mount / Unmount example (Maintenance)
+## Mount / unmount example (for maintenance)
 
 Befor or after or independently of encrypting, you can always mount
 and unmount installations of Asahi Linux present on your machinr on
