@@ -19,12 +19,12 @@ drive or another installation of Asahi Linux on the same machine.
 Features:
 - Decent error handling. It unlikely let you go wrong, eg. accidentally
 encrypt your running system, or unsuitable partition.
-- Resumable. You can interrupt the execution at any point. Just
-run again to continue.
-- Idempotent. You can run it as many times as you want, even run against
-already encrypted system. The changes are mede only if required.
-- Provides means to mount and unmount encrypted or unencrypted Asahi
-Linux installations to do configuration or maintenance jobs if needed.
+- Resumable and idempotent. In case of interruption or power loss at any
+point of execution, just run again to continue, it will take care of
+recovery/resuming of encryption if needed, all changes are made once, no
+matter how many times you run the script.
+- Can mount and unmount encrypted or unencrypted Asahi Linux
+installations to do configuration or maintenance jobs if needed.
 
 Before proceeding:
 - Please backup your data
