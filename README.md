@@ -87,9 +87,9 @@ A record for encripted root partition is added to **/etc/crypttab**.
 Boot time kernel parameter is added to **/etc/default/grub**.
 
 ## 4. Rebuild initramfs on target system
-This is necessary to propagate the changes we've made to the components
-responsible for booting the target system, so that the root partition
-is decrypted at the boot time.
+This is necessary to propagate the changes we've made to the boot
+components of the target system, so that the root partition is decrypted
+at the boot time.
 
 ``` sh
 chroot /mnt grub2-mkconfig -o /boot/grub2/grub.cfg
@@ -102,17 +102,22 @@ installed kernel version in the target system and passes it to the
 command.
 
 ## 5. Temporarily disable selinux enforcing
-Without this step system most likely won't boot. Temporarily add
-`enforsing=0` to kernel parameters.
+Temporarily add `enforsing=0` to kernel parameters. Without this step
+the system most likely won't boot.
 
 ``` sh
 chroot /mnt grubby --update-kernel ALL --args enforcing=0
 ```
 
 Then we schedule rebuilding initramfs on the first boot of the target
-system, which reset this enforcing parameter and adjust selinux. The
-commands are `grub2-mkconfig -o /boot/grub2/grub.cfg` and `dracut -f`.
-The script schedules them via cron.
+system, which will reset this parameter. The script schedules the
+following commands via cron for this purpose:
+
+``` sh
+grub2-mkconfig -o /boot/grub2/grub.cfg
+dracut -f
+setenforce 1
+```
 
 # RECOMMENDATIONS
 
