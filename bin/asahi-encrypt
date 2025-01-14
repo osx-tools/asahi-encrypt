@@ -11,7 +11,7 @@ CUR_ROOT=`findmnt -nvo SOURCE -M /` || die
 ERR_LOG=/tmp/${0##*/}-$$.log
 unset action_{mount,encrypt,umount} ARGS raw_dev dev size type uuid luks_name
 
-# Parsing command line
+# Parsing the command line
 while (( $# )); do
     case $1 in
         -h) cat <<-EOF
@@ -54,25 +54,20 @@ EOF
     shift
 done
 
-# Checking arguments & initializing variables
-[[ ${#ARGS[@]} == 0 && $action_list || ${ARGS[0]} =~ ^(/dev/nvme[0-9]+n[0-9]+)(p([0-9]+))?$ ]] \
-    && base=${BASH_REMATCH[1]:-/dev/nvme0n1} R=${BASH_REMATCH[3]} \
-    || die "$USAGE_SHORT\nUse '-h' for help"
-(( ${#ARGS[@]} <= 1 )) \
-    || die "Extra arguments passed: ${ARGS[*]:1}"
 
 is_encrypted() { [[ ${type[R]} == crypto_LUKS ]]; }
 is_open() { [[ -b /dev/mapper/${luks_name[R]} ]]; }
 
-mount_msg() { (( mount_msg_shown )) || msg "Mounting the target system on $CHROOT"; mount_msg_shown=1; }
+mount_msg() { (( msg_shown )) || msg "Mounting the target system on $CHROOT"; msg_shown=1; }
 chroot_mount() {
     local targets=( [R]="root: home:/home" [B]=":/boot" [E]=":/boot/efi" )
     if  is_encrypted && ! is_open; then
         msg "Opening the encrypted root partition of the target system"
         sudo cryptsetup open "${raw_dev[R]}" "${luks_name[R]}" || die "Failed to open LUKS partition: ${raw_dev[R]}"
+        # Just indicating that device is open, instead of calling read_partitions
         dev[R]=/dev/mapper/${luks_name[R]}
     fi
-    local mount_msg_shown n m spec vol target root mp fstype opts fstab=$CHROOT/etc/fstab ok
+    local msg_shown n m spec vol target root mp fstype opts fstab=$CHROOT/etc/fstab ok
     for n in $R $B $E; do
         # If partition has subvolumes, handle each subvolume
         for spec in ${targets[n]}; do
@@ -131,7 +126,9 @@ chroot_umount() {
 
 encrypt_root() {
     trap 'rm "$ERR_LOG"' EXIT
+    # Encrypting the root partition inplace
     if  ! sudo cryptsetup reencrypt --encrypt --reduce-device-size "$LUKS_HDR_BYTES" "${raw_dev[R]}" > >(tee "$ERR_LOG") 2>&1; then
+        # When --try_repair is given, check if command failed due to a repair requirement and try to fix
         if  [[ $1 == --try_repair ]] && grep -qiE "requires reencryption recovery|run repair first" "$ERR_LOG"; then
             local backup
             printf -v backup "./luks-header-${uuid[R]}.%(%F_%H%M%S)T.backup" -1
@@ -141,12 +138,15 @@ encrypt_root() {
             msg "Repairing the target root partition"
             sudo cryptsetup repair "${raw_dev[R]}" \
                 || die "Failed to repair target root partition"
-            msg "Resuming encription of the repaired target root partition"
+            msg "Resuming encryption of the repaired target root partition"
             encrypt_root
+            return
         else
             die "Failed to encrypt root partition"
         fi
     fi
+    # Updating partition information after encryption since UUID and type has changed.
+    read_partitions
 }
 
 read_partitions() {
@@ -216,12 +216,12 @@ asahi_encrypter() {
         chroot_umount
         msg "Encrypting the target root partition inplace"
         encrypt_root
-        type[R]=crypto_LUKS
     fi
     if  [[ $action_encrypt || $action_mount ]]; then
+        # Checking if the encryption was interrupted
         if  grep -q "^Requirements:.*\bonline-reencrypt" <<<"`sudo cryptsetup luksDump "${dev[R]}" 2>/dev/null`"; then
             chroot_umount
-            msg "Resuming interrupted encription of the target root partition"
+            msg "Resuming interrupted encryption of the target root partition"
             encrypt_root --try_repair
         fi
         chroot_mount --vfs
@@ -276,15 +276,23 @@ asahi_finder() {
     [[ ! $matched ]] || lsblk -ndo PATH,FSTYPE,SIZE,LABEL "${matched[@]}"
 }
 
+
+# Checking arguments & initializing variables
+[[ ${#ARGS[@]} == 0 && $action_list || ${ARGS[0]} =~ ^(/dev/nvme[0-9]+n[0-9]+)(p([0-9]+))?$ ]] \
+    && base=${BASH_REMATCH[1]:-/dev/nvme0n1} R=${BASH_REMATCH[3]} \
+    || die "$USAGE_SHORT\nUse '-h' for help"
+(( ${#ARGS[@]} <= 1 )) \
+    || die "Extra arguments passed: ${ARGS[*]:1}"
+
+# Performing the actions
 if  (( action_list )); then
     [[ ! $R  ]] || die "Only whole device is allowed with option '-l', not a partition: ${ARGS[0]}"
     asahi_finder
 else
     [[   $R  ]] || die "Only partitions ars allowed for enctiption, not a whole device: ${ARGS[0]}"
     (( R > 3 )) || die "The partition number should be greater than 4: ${ARGS[0]}"
-    # S, E, B, R - numbers of Stub-MacOS, EFI, Boot and Root partitions respectively
+    # S, E, B, R - numbers of corresponfing Stub-MacOS, EFI, Boot and Root partitions in the installation layout
     (( S=R-3, E=R-2, B=R-1 ))
     (( action_mount || action_encrypt || action_umount )) || action_mount=1 action_encrypt=1 action_umount=1
     asahi_encrypter
 fi
-
