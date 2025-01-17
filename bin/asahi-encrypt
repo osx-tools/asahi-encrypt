@@ -29,17 +29,17 @@ partitions:
   You can easily determine suitable root partitions using
 one of the commands: '${0##*/} -l' or 'lsblk -f'.
 Unencrypted root partitions of a typical Fedora Linux
-installation are usually labeled as 'fedora'.
+installation are usually labeled 'fedora'.
 
 OPTIONS:
-    -m  - Just mount target system to $CHROOT
+    -m  - Just mount target system on /mnt
     -e  - Just encrypt target system, implies '-m'
-    -u  - Just unmount target system from $CHROOT
+    -u  - Just unmount target system from /mnt
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
   If none of the '-m', '-e', '-u' options are given, all
-three actions are assumed, i.e.: mount, encrypt, unmount
+three actions are assumed: mount, encrypt, unmount.
 
 EOF
         exit
