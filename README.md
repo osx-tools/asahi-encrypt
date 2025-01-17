@@ -5,9 +5,11 @@ asahi-encrypt - encrypt root partition of Fedora Asahi Remix installation
 # SYNOPSIS
 
 List installations available for encryption (example):
+
     asahi-encrypt -l
 
-Encrypt installation (example):
+Encrypt the installation (example):
+
     asahi-encrypt /dev/nvme0n1p6
 
 # DESCRIPTION
@@ -19,12 +21,12 @@ drive or another installation of Asahi Linux on the same machine.
 Features:
 - Decent error handling. It unlikely let you go wrong, eg. accidentally
 encrypt your running system, or unsuitable partition.
-- Resumable. You can interrupt the execution at any point. Just
-run again to continue.
-- Idempotent. You can run it as many times as you want, even run against
-already encrypted system. The changes are mede only if required.
-- Provides means to mount and unmount encrypted or unencrypted Asahi
-Linux installations to do configuration or maintenance jobs if needed.
+- Resumable and idempotent. In case of interruption or power loss at any
+point of execution, just run again to continue, it will take care of
+recovery/resuming of encryption if needed, all changes are made once, no
+matter how many times you run the script.
+- Can mount and unmount encrypted or unencrypted Asahi Linux
+installations to do configuration or maintenance jobs if needed.
 
 Before proceeding:
 - Please backup your data
@@ -35,18 +37,22 @@ the script.
 
 # USAGE
 
+``` ini
 Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
-  Where /dev/nvme0n1p{N} is the root partition of Asahi linux installation,
-the installation is expected to consist of four partitions:
-    /dev/nvme0n1p{N-3} - 2.5G Macos Boot Loader APFS partition (aka Stub-Macos)
-    /dev/nvme0n1p{N-2} - 500M EFI partition
-    /dev/nvme0n1p{N-1} - 1.0G Boot partition
-    /dev/nvme0n1p{N}   -      Root partition, that will be encrypted
+  Where /dev/nvme0n1p{N} is the root partition of Asahi linux
+installation. The installation is expected to consist of four
+partitions:
+    /dev/nvme0n1p{N-3} - 2.5G apfs  Macos Boot Loader
+    /dev/nvme0n1p{N-2} - 500M vfat  EFI
+    /dev/nvme0n1p{N-1} - 1.0G ext4  Boot
+    /dev/nvme0n1p{N}   -      btrfs Root (will be encrypted)
 
-  You can easily determine suitable root partitions using 'asahi-encrypt -l'
-or 'lsblk -f' command. Root partitions usually have label 'fedora'.
+  You can easily determine suitable root partitions using
+one of the commands: 'asahi-encrypt -l' or 'lsblk -f'.
+Unencrypted root partitions of a typical Fedora Linux
+installation are usually labeled as 'fedora'.
 
 OPTIONS:
     -m  - Just mount target system to /mnt
@@ -55,137 +61,244 @@ OPTIONS:
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
-  If none of '-m', '-e', '-u' options given, all three actions implied, i.e.:
-mount, encrypt, unmount
+  If none of the '-m', '-e', '-u' options are given, all
+three actions are assumed, i.e.: mount, encrypt, unmount
+
+```
 
 # OPERATIONS
 
-### A brief description of what it does
+A brief description of what it does
 
-**1. Shrink root filesystem by 32M**
+## 1. Shrink root filesystem by 32M
 It is required to accomodate LUKS header when partition will be encrypted.
 
-\# btrfs filesystem resize -32M /mnt
+``` sh
+btrfs filesystem resize -32M /mnt
+```
 
-**2. Encrypt root partition inplace**
+## 2. Encrypt root partition inplace
 The root partition is encrypted, partition data will be preserved.
 
-\# cryptsetup reencrypt --encrypt --reduce-device-size 32M /dev/nvme0n1p6
+``` sh
+cryptsetup reencrypt --encrypt --reduce-device-size 32M /dev/nvme0n1p6
+```
 
-**3. Configure target system**
+## 3. Configure target system
 A record for encripted root partition is added to **/etc/crypttab**.
 Boot time kernel parameter is added to **/etc/default/grub**.
 
-**4. Rebuild initramfs on target system**
-This is necessary to propagate the changes we've made to the components
-responsible for booting the target system, so that the root partition
-is decrypted at the boot time.
+## 4. Rebuild initramfs on target system
+This is necessary to propagate the changes we've made to the boot
+components of the target system, so that the root partition is decrypted
+at the boot time.
 
-\# chroot /mnt grub2-mkconfig -o /boot/grub2/grub.cfg
-\# chroot /mnt dracut -f --kver {KERNEL_VERSION}
+``` sh
+chroot /mnt grub2-mkconfig -o /boot/grub2/grub.cfg
+chroot /mnt dracut -f --kver {KERNEL_VERSION}
+```
 
 `--kver {KERNEL_VERSION}` is needed if the kernels in the running and
 target system has different versions. The script detects the last
 installed kernel version in the target system and passes it to the
 command.
 
-**5. Temporarily disable selinux enforcing**
-Without this step system most likely won't boot. Temporarily add
-`enforsing=0` to kernel parameters.
+## 5. Temporarily disable selinux enforcing
+Temporarily add `enforsing=0` to kernel parameters. Without this step
+the system most likely won't boot.
 
-\# chroot /mnt grubby --update-kernel ALL --args enforcing=0
+``` sh
+chroot /mnt grubby --update-kernel ALL --args enforcing=0
+```
 
 Then we schedule rebuilding initramfs on the first boot of the target
-system, which reset this enforcing parameter and adjust selinux. The
-commands are `grub2-mkconfig -o /boot/grub2/grub.cfg` and `dracut -f`.
-The script schedules them via cron.
+system, which will reset this parameter. The script schedules the
+following commands via cron for this purpose:
+
+``` sh
+grub2-mkconfig -o /boot/grub2/grub.cfg
+dracut -f
+setenforce 1
+```
 
 # RECOMMENDATIONS
 
 I persanally don't like to mess with USB sticks and loaders. I usually
-create little Asahi Linux installation of 8Gb (total 12Gb with other
-necessary partitions) at the end of the disk. During the installation
-process I choose "Minimal system" and name it "Asahi Resque". I then
-can use it as a rescue system, for encriptyng, reconfiguring and do the
-maintenance jobs of the main installation(s).
+create little Asahi Linux installation of 16Gb (there will be 12Gb root
+and 4Gb for necessary boot partitions) at the end of the disk. During
+the installation process I choose "Minimal system" and name it
+"Asahi Resque". I then can use it as a rescue system, for encriptyng,
+reconfiguring and do the maintenance jobs of the main installation(s).
 
-### Usage example
+## Usage example
 
-First you need to clone the repository ro your USB stick or Rescue OS
+First you need to clone the repository to your USB stick or Rescue OS
 (described above):
 
-\# git clone https://github.com/osx-tools/asahi-encrypt.git
+``` sh
+git clone https://github.com/osx-tools/asahi-encrypt.git
+```
 
-Assuming you have booted from the Resque OS or USB stick. Navigate to
-`./asahi-encrypt/bin` directory and run:
+Assuming you have booted from the Resque OS or the USB stick. Navigate
+to `./asahi-encrypt/bin` directory and run:
 
-\# ./asahi-encrypt -l
-/dev/nvme0n1p6 btrfs 115.4G fedora
+``` sh
+./asahi-encrypt -l
+```
+>``` txt
+>/dev/nvme0n1p6 btrfs 55.8G fedora
+>```
 
-As you can see I have one installation of Asahi Linux on this machine,
-which is unencrypted, because it is displayed as `btrfs`. Script will
-not show your current running os, because encription of running system
-is prohibited. Then we just encrypt this partition with one command:
+As you can see I have one installation of Asahi Linux on my machine
+except the running one. The installation is unencrypted, because it is
+displayed as `btrfs`. The script will not show your currently running
+OS, because encription of running system is not allowed yet. Then we
+just encrypt this partition with one command:
 
-\# ./asahi-encrypt /dev/nvme0n1p6
+``` sh
+./asahi-encrypt /dev/nvme0n1p6
+```
+>``` txt
+>./asahi-encrypt /dev/nvme0n1p6
+>>>> Mounting the target system on /mnt
+>[sudo] password for albert: 
+>>>> Shrinking the target root filesystem to accomodate LUKS header
+>Resize device id 1 (/dev/nvme0n1p6) from 55.79GiB to 55.76GiB
+>>>> Unmounting the target system from /mnt
+>>>> Encrypting the target root partition inplace
+>
+>WARNING!
+>========
+>This will overwrite data on LUKS2-temp-57e96d3b-0a1f-4f92-9bfe-446ce96aabe1.new irrevocably.
+>
+>Are you sure? (Type 'yes' in capital letters): YES
+>Enter passphrase for LUKS2-temp-57e96d3b-0a1f-4f92-9bfe-446ce96aabe1.new: 
+>Verify passphrase: 
+>Finished, time 00m37s,   55 GiB written, speed   1.5 GiB/s
+>>>> Opening the encrypted root partition of the target system
+>Enter passphrase for /dev/nvme0n1p6: 
+>>>> Mounting the target system on /mnt
+>>>> Configuring the target system
+>>>> Rebuilding initramfs for the target system
+>Generating grub configuration file ...
+>Found Fedora Linux Asahi Remix 41 (Workstation Edition) on /dev/mapper/fedora-6ad5a9a1
+>Adding boot menu entry for UEFI Firmware Settings ...
+>done
+>dracut[E]: No '/dev/log' or 'logger' included for syslog logging
+>>>> Disabling selinux enforcing for the target system until next boot
+>>>> Unmounting the target system from /mnt
+>>>> Closing the encrypted root partition of the target system
+>>>> Done!
+>```
 
-You'll be asked for your password if you are running as a regular user,
-and a passphrase to encrypt the root partition of the target system.
-After the script finishes, you see that now it is encrypted:
+You'll be asked for your password if you run it as a regular user and
+a passphrase to encrypt the root partition of the target system. After
+the script finishes, you will see that the partition is encrypted:
 
-\# ./asahi-encrypt -l
-/dev/nvme0n1p6 crypto_LUKS 115.4G
+``` sh
+./asahi-encrypt -l
+```
+>``` txt
+>/dev/nvme0n1p6 crypto_LUKS 55.8G 
+>```
 
 Now you can boot to your encrypted system. During the boot you'll be
-asked for the passphrase to decrypt root.
+asked for the passphrase to decrypt the root partition.
 
+## Mount / unmount example (for maintenance)
 
-### Rescue / Maintenance example
+Independently of encrypting, you can always mount the other Asahi Linux
+installations on your machine on `/mnt`. In this example there are two
+Asahi linux installations other than currently running one:
 
-Befor or after or independently of encrypting, you can always mount
-and unmount the other installations of Asahi Linux on `/mnt` of your
-currently running system. To do so let's find available installations
-as in the previous example:
+``` sh
+./asahi-encrypt -l
+```
+>``` txt
+>/dev/nvme0n1p6  crypto_LUKS 55.8G.
+>/dev/nvme0n1p14 crypto_LUKS 11.1G.
+>```
 
-\# ./asahi-encrypt -l
-/dev/nvme0n1p6  crypto_LUKS 115.4G
-/dev/nvme0n1p10 btrfs        89.3G fedora
+You can also use extended view of all your partitions using `lsblk -f`:
 
-You can also use extended view of all your partitions using `lsblk`:
+``` sh
+lsblk -f
+```
+>``` txt
+>NAME                FSTYPE      FSVER LABEL       UUID                                 FSAVAIL FSUSE% MOUNTPOINTS
+>zram0                                                                                                 [SWAP]
+>nvme0n1                                                                                               
+>├─nvme0n1p1         apfs                          3abdfbb7-b3ac-4ddf-aa8b-210761d14d2a                
+>├─nvme0n1p2         apfs                          d74c6c3b-9740-401b-b210-47628209d907                
+>├─nvme0n1p3         apfs                          8f969030-c1ef-4785-979c-fd6718dfe95d                
+>├─nvme0n1p4         vfat        FAT32 EFI - ASAHI 2005-46BA                                           
+>├─nvme0n1p5         ext4        1.0   BOOT        834529c8-8a29-4101-83a4-dd776922c2c8                
+>├─nvme0n1p6         crypto_LUKS 2                 57e96d3b-0a1f-4f92-9bfe-446ce96aabe1                
+>├─nvme0n1p7         apfs                          8635584a-0752-4cd0-825d-48aa79b1845d                
+>├─nvme0n1p8         vfat        FAT32 EFI - ASAHI 23FA-AD3E                             370.7M    26% /boot/efi
+>├─nvme0n1p9         ext4        1.0   BOOT        69fa608d-1dd2-408a-9907-7d0881db5b4a  792.2M    12% /boot
+>├─nvme0n1p10        crypto_LUKS 2                 6ad5a9a1-6d8b-4468-b9d9-2696b13bd940                
+>│ └─fedora-6ad5a9a1 btrfs             fedora      a4ab00fe-49d8-4f06-b59a-92d35fb5a311  105.8G     6% /home
+>│                                                                                                     /
+>├─nvme0n1p11        apfs                          a9e974f3-d48a-4344-90ce-07f75529546f                
+>├─nvme0n1p12        vfat        FAT32 EFI - ASAHI FEDF-195A                                           
+>├─nvme0n1p13        ext4        1.0   BOOT        cc448e29-b2af-4ebb-85fd-e5e0f23604b2                
+>├─nvme0n1p14        crypto_LUKS 2                 c9c54c52-8f69-4310-9421-06d49d46a525                
+>└─nvme0n1p15        apfs                          342b57f9-0698-44e8-b734-d65f7b66994f                
+>nvme0n2                                                                                               
+>nvme0n3                                                                               
+>```
 
-\# lsblk -f
+After choosing which target system you want to mount, issue the command:
 
-After choosing which target system you want to mount, issue command:
+``` sh
+./asahi-encrypt /dev/nvme0n1p6 -m
+```
+>``` txt
+>[sudo] password for albert: 
+>>>> Opening the encrypted root partition of the target system
+>Enter passphrase for /dev/nvme0n1p6: 
+>>>> Mounting the target system on /mnt
+>>>> Done!
+>```
 
-\# ./asahi-encrypt /dev/nvme0n1p10 -m
-
-You will be asked sudo password if running as a regular user and a
-passphrase if the target system is encrypted. Now you can chroot to
+You will be asked for your password if you run it as a regular user and
+a passphrase if the target system is encrypted. Now you can chroot to
 your target system:
 
-\# chroot /mnt
+``` sh
+chroot /mnt
+```
 
-Do the configuration or maintenance jobs, and after that, run the
+Do the configuration or maintenance jobs. When finished, run the
 following command to unmount the target system:
 
-\# ./asahi-encrypt /dev/nvme0n1p10 -u
+``` sh
+./asahi-encrypt /dev/nvme0n1p6 -u
+```
+>``` txt
+>>>> Unmounting the target system from /mnt
+>>>> Closing the encrypted root partition of the target system
+>>>> Done!
+>```
 
 Now the target system is unmounted and you can reboot.
 
 # CREDITS
 
-https://davidalger.com/posts/fedora-asahi-remix-on-apple-silicon-with-luks-encryption
+[Fedora Asahi Remix with LUKS Encryption by David Alger](https://davidalger.com/posts/fedora-asahi-remix-on-apple-silicon-with-luks-encryption)
 
 # REPORTING BUGS
 
-Bug tracker: https://github.com/osx-tools/asahi-encrypt/issues
+https://github.com/osx-tools/asahi-encrypt/issues
 
 # COPYRIGHT
 
-Copyright (c) 2024 albert-a &lt;albert-a@github.com&gt;
-License:MIT &lt;https://mit-license.org&gt;
+Copyright (c) 2024 abert-a: albert-a@github.com
+
+License: MIT https://mit-license.org
 
 # SEE ALSO
 
-**btrfs-filesystem**(8), **chroot** **cryptsetup-reencrypt**(8), **crypttab**(5), 
+**btrfs-filesystem**(8), **chroot**(1), **cryptsetup-reencrypt**(8), **crypttab**(5),
 **dracut**(8), **grub2-mkconfig**(8).
