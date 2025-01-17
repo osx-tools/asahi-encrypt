@@ -17,15 +17,18 @@ while (( $# )); do
 $USAGE_SHORT
        ${0##*/} -l [/dev/nvme0n1]
 
-  Where /dev/nvme0n1p{N} is the root partition of Asahi linux installation,
-the installation is expected to consist of four partitions:
-    /dev/nvme0n1p{N-3} - 2.5G Macos Boot Loader APFS partition (aka Stub-Macos)
-    /dev/nvme0n1p{N-2} - 500M EFI partition
-    /dev/nvme0n1p{N-1} - 1.0G Boot partition
-    /dev/nvme0n1p{N}   -      Root partition, that will be encrypted
+  Where /dev/nvme0n1p{N} is the root partition of Asahi linux
+installation. The installation is expected to consist of four
+partitions:
+    /dev/nvme0n1p{N-3} - 2.5G apfs  Macos Boot Loader
+    /dev/nvme0n1p{N-2} - 500M vfat  EFI
+    /dev/nvme0n1p{N-1} - 1.0G ext4  Boot
+    /dev/nvme0n1p{N}   -      btrfs Root (will be encrypted)
 
-  You can easily determine suitable root partitions using '${0##*/} -l'
-or 'lsblk -f' command. Root partitions usually have label 'fedora'
+  You can easily determine suitable root partitions using
+one of the commands: '${0##*/} -l' or 'lsblk -f'.
+Unencrypted root partitions of a typical Fedora Linux
+installation are usually labeled as 'fedora'.
 
 OPTIONS:
     -m  - Just mount target system to $CHROOT
@@ -34,8 +37,8 @@ OPTIONS:
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
-  If none of '-m', '-e', '-u' options given, all three actions implied, i.e.:
-mount, encrypt, unmount
+  If none of the '-m', '-e', '-u' options are given, all
+three actions are assumed, i.e.: mount, encrypt, unmount
 
 EOF
         exit
