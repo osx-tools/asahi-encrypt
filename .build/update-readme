@@ -3,5 +3,16 @@
 script=${0%/*}/../bin/asahi-encrypt
 readme=${0%/*}/../README.md
 
-# This updates the USAGE section of README with the output of `asahi-encrypt -h`
-sed -ri "/^# USAGE/,/^#/{/^#/!d;/^# USAGE/{n;n;s|^|$script -h|e}}" "$readme"
+# This updates the USAGE section of README with the
+# output of `asahi-encrypt -h` (usage help):
+
+sed -ri '
+/^# USAGE/,/^#/ {
+    /^#/!d
+    /^# USAGE/ {
+        p
+        s|.*|'"'$script' -h"'|e
+        s|.*|\n``` ini\n&\n```\n|
+    }
+}' "$readme"
+
