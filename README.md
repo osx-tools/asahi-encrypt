@@ -19,8 +19,8 @@ of your Fedora Asahi Remix installation inplace. It can run from USB
 drive or another installation of Asahi Linux on the same machine.
 
 Features:
-- Decent error handling. It unlikely let you go wrong, eg. accidentally
-encrypt your running system, or unsuitable partition.
+- Error handling. It is unlikely, that the script will let you go wrong,
+eg. accidentally encrypt your running system or unsuitable partition.
 - Resumable and idempotent. In case of interruption or power loss at any
 point of execution, just run again to continue, it will take care of
 recovery/resuming of encryption if needed, all changes are made once, no
@@ -31,6 +31,7 @@ installations to do configuration or maintenance jobs if needed.
 Before proceeding:
 - Please backup your data
 - It is good idea to learn how it works, see OPERATIONS section
+- Check EXAMPLES section for a detailed usage example
 
 The author of the script is not responsible for any harm caused by using
 the script.
@@ -52,17 +53,17 @@ partitions:
   You can easily determine suitable root partitions using
 one of the commands: 'asahi-encrypt -l' or 'lsblk -f'.
 Unencrypted root partitions of a typical Fedora Linux
-installation are usually labeled as 'fedora'.
+installation are usually labeled 'fedora'.
 
 OPTIONS:
-    -m  - Just mount target system to /mnt
+    -m  - Just mount target system on /mnt
     -e  - Just encrypt target system, implies '-m'
     -u  - Just unmount target system from /mnt
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
   If none of the '-m', '-e', '-u' options are given, all
-three actions are assumed, i.e.: mount, encrypt, unmount
+three actions are assumed: mount, encrypt, unmount.
 
 ```
 
@@ -123,12 +124,21 @@ setenforce 1
 
 # RECOMMENDATIONS
 
-I persanally don't like to mess with USB sticks and loaders. I usually
-create little Asahi Linux installation of 16Gb (there will be 12Gb root
-and 4Gb for necessary boot partitions) at the end of the disk. During
-the installation process I choose "Minimal system" and name it
-"Asahi Resque". I then can use it as a rescue system, for encriptyng,
-reconfiguring and do the maintenance jobs of the main installation(s).
+Rather than preparing an USB stick, it might be much easyer to create a
+small 16Gb Asahi Linux installation at the end of the your system disk.
+During the installation process, choose "Minimal system" and name it eg.
+"Asahi Resque". It can then be used as a rescue system for encryption,
+configuration or performing maintenance jobs on the main installation(s).
+
+> [!WARNING]
+> Currently, you **can not** install two OSes of the same type because
+> of [this](https://pagure.io/fedora-asahi/remix-bugs/issue/9) issue,
+> also [here](https://github.com/AsahiLinux/asahi-installer/issues/265).
+> Eg. two Gnome or two KDE or two minimal systems. Although installing
+> eg. Gnome, KDE and a minimal system side by side is perfectly
+> acceptable.
+
+# EXAMPLES
 
 ## Usage example
 
@@ -159,7 +169,6 @@ just encrypt this partition with one command:
 ./asahi-encrypt /dev/nvme0n1p6
 ```
 >``` txt
->./asahi-encrypt /dev/nvme0n1p6
 >>>> Mounting the target system on /mnt
 >[sudo] password for albert: 
 >>>> Shrinking the target root filesystem to accomodate LUKS header
@@ -207,7 +216,7 @@ asked for the passphrase to decrypt the root partition.
 
 ## Mount / unmount example (for maintenance)
 
-Independently of encrypting, you can always mount the other Asahi Linux
+Independently of encrypting, you can always mount other Asahi Linux
 installations on your machine on `/mnt`. In this example there are two
 Asahi linux installations other than currently running one:
 
