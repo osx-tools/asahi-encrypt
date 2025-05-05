@@ -14,15 +14,15 @@ Encrypt the installation (example):
 
 # DESCRIPTION
 
-**asahi-encrypt** is script that allows you to encrypt the root partition
-of your Fedora Asahi Remix installation inplace. It can run from USB
-drive or another installation of Asahi Linux on the same machine.
+**asahi-encrypt** is a script to encrypt the root partition of a Fedora
+Asahi Remix installation on Apple Silicon Macs using LUKS. It can run
+from USB drive or another Asahi Linux installation on the same machine.
 
 Features:
 - Error handling. It is unlikely, that the script will let you go wrong,
-eg. accidentally encrypt your running system or unsuitable partition.
+e.g. accidentally encrypt your running system or unsuitable partition.
 - Resumable and idempotent. In case of interruption or power loss at any
-point of execution, just run again to continue, it will take care of
+point of execution, just run it again to continue, it will take care of
 recovery/resuming of encryption if needed, all changes are made once, no
 matter how many times you run the script.
 - Can mount and unmount encrypted or unencrypted Asahi Linux
@@ -72,7 +72,7 @@ three actions are assumed: mount, encrypt, unmount.
 A brief description of what it does
 
 ## 1. Shrink root filesystem by 32M
-It is required to accomodate LUKS header when partition will be encrypted.
+It is required to accommodate LUKS header when partition will be encrypted.
 
 ``` sh
 btrfs filesystem resize -32M /mnt
@@ -124,33 +124,34 @@ setenforce 1
 
 # RECOMMENDATIONS
 
-Rather than preparing an USB stick, it might be much easyer to create a
-small 16Gb Asahi Linux installation at the end of the your system disk.
-During the installation process, choose "Minimal system" and name it eg.
-"Asahi Resque". It can then be used as a rescue system for encryption,
+Rather than preparing an USB stick, it may be much easier to create a
+small 16 Gb Asahi Linux installation at the end of your system disk.
+During the installation process, choose "Minimal system" and name it e.g.
+"Asahi Rescue". It can then be used as a rescue system for encryption,
 configuration or performing maintenance jobs on the main installation(s).
 
 > [!WARNING]
-> Currently, you **can not** install two OSes of the same type because
-> of [this](https://pagure.io/fedora-asahi/remix-bugs/issue/9) issue,
-> also [here](https://github.com/AsahiLinux/asahi-installer/issues/265).
-> Eg. two Gnome or two KDE or two minimal systems. Although installing
-> eg. Gnome, KDE and a minimal system side by side is perfectly
-> acceptable.
+> Due to a [known limitation](https://pagure.io/fedora-asahi/remix-bugs/issue/9)
+> (see also [here](https://github.com/AsahiLinux/asahi-installer/issues/265))
+> you cannot install two identical desktop environments (e.g., two
+> GNOME or two KDE systems). However, you can install different
+> environments (e.g., GNOME, KDE, and a minimal system) side by side.
 
 # EXAMPLES
 
 ## Usage example
 
-First you need to clone the repository to your USB stick or Rescue OS
-(described above):
+1. Clone the repository to your USB stick or rescue system:
 
 ``` sh
 git clone https://github.com/osx-tools/asahi-encrypt.git
 ```
+you can do it later after you boot into your USB or rescue system, of
+course network configuration is required in this case.
 
-Assuming you have booted from the Resque OS or the USB stick. Navigate
-to `./asahi-encrypt/bin` directory and run:
+2. Boot into the rescue system or USB stick.
+
+3. Navigate to `./asahi-encrypt/bin` directory and run:
 
 ``` sh
 ./asahi-encrypt -l
@@ -159,11 +160,12 @@ to `./asahi-encrypt/bin` directory and run:
 >/dev/nvme0n1p6 btrfs 55.8G fedora
 >```
 
-As you can see I have one installation of Asahi Linux on my machine
+As you can see we have one installation of Asahi Linux on the machine
 except the running one. The installation is unencrypted, because it is
 displayed as `btrfs`. The script will not show your currently running
-OS, because encription of running system is not allowed yet. Then we
-just encrypt this partition with one command:
+OS, because encription of running system is not allowed yet.
+
+4. Just encrypt this partition with one command:
 
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p6
@@ -171,7 +173,7 @@ just encrypt this partition with one command:
 >``` txt
 >>>> Mounting the target system on /mnt
 >[sudo] password for albert: 
->>>> Shrinking the target root filesystem to accomodate LUKS header
+>>>> Shrinking the target root filesystem to accommodate LUKS header
 >Resize device id 1 (/dev/nvme0n1p6) from 55.79GiB to 55.76GiB
 >>>> Unmounting the target system from /mnt
 >>>> Encrypting the target root partition inplace
@@ -201,8 +203,10 @@ just encrypt this partition with one command:
 >```
 
 You'll be asked for your password if you run it as a regular user and
-a passphrase to encrypt the root partition of the target system. After
-the script finishes, you will see that the partition is encrypted:
+a passphrase to encrypt the root partition of the target system. 
+
+5. After the script finishes, you can ensure that the partition is
+encrypted:
 
 ``` sh
 ./asahi-encrypt -l
@@ -211,14 +215,15 @@ the script finishes, you will see that the partition is encrypted:
 >/dev/nvme0n1p6 crypto_LUKS 55.8G 
 >```
 
-Now you can boot to your encrypted system. During the boot you'll be
+6. Now you can boot to your encrypted system. During the boot you'll be
 asked for the passphrase to decrypt the root partition.
 
 ## Mount / unmount example (for maintenance)
 
 Independently of encrypting, you can always mount other Asahi Linux
-installations on your machine on `/mnt`. In this example there are two
-Asahi linux installations other than currently running one:
+installations on your machine on `/mnt`. 
+
+1. Inspect which system you want to mount:
 
 ``` sh
 ./asahi-encrypt -l
@@ -228,7 +233,9 @@ Asahi linux installations other than currently running one:
 >/dev/nvme0n1p14 crypto_LUKS 11.1G.
 >```
 
-You can also use extended view of all your partitions using `lsblk -f`:
+In this example there are two Asahi linux installations other than
+currently running one. You can also use extended view of all your
+partitions using `lsblk -f`:
 
 ``` sh
 lsblk -f
@@ -258,7 +265,8 @@ lsblk -f
 >nvme0n3                                                                               
 >```
 
-After choosing which target system you want to mount, issue the command:
+2. After choosing which target system you want to mount (e.g.
+/dev/nvme0n1p6), issue the command:
 
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p6 -m
@@ -272,15 +280,17 @@ After choosing which target system you want to mount, issue the command:
 >```
 
 You will be asked for your password if you run it as a regular user and
-a passphrase if the target system is encrypted. Now you can chroot to
-your target system:
+a passphrase if the target system is encrypted.
+
+3. Now you can chroot to your target system:
 
 ``` sh
 chroot /mnt
 ```
 
-Do the configuration or maintenance jobs. When finished, run the
-following command to unmount the target system:
+4. Do the configuration or maintenance jobs. Exit chroot.
+
+5. When finished, unmount the target system with the command:
 
 ``` sh
 ./asahi-encrypt /dev/nvme0n1p6 -u
@@ -291,7 +301,7 @@ following command to unmount the target system:
 >>>> Done!
 >```
 
-Now the target system is unmounted and you can reboot.
+6. The target system is unmounted and you can reboot.
 
 # CREDITS
 
@@ -303,7 +313,7 @@ https://github.com/osx-tools/asahi-encrypt/issues
 
 # COPYRIGHT
 
-Copyright (c) 2024 abert-a: albert-a@github.com
+Copyright (c) 2024 albert-a: albert-a@github.com
 
 License: MIT https://mit-license.org
 

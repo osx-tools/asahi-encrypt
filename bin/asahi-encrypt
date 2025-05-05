@@ -212,7 +212,7 @@ asahi_encrypter() {
         fs_size=`lsblk -ndbo FSSIZE "${raw_dev[R]}"`
         (( fs_size )) || die "Can't determine filesystem size of the root partition: ${raw_dev[R]}"
         if  (( size[R] - fs_size < LUKS_HDR_BYTES )); then
-            msg "Shrinking the target root filesystem to accomodate LUKS header"
+            msg "Shrinking the target root filesystem to accommodate LUKS header"
             sudo btrfs filesystem resize $[size[R] - LUKS_HDR_BYTES] "$CHROOT" \
                 || die "Failed to resize the root partition: ${raw_dev[R]}"
         fi
@@ -292,7 +292,7 @@ if  (( action_list )); then
     [[ ! $R  ]] || die "Only whole device is allowed with option '-l', not a partition: ${ARGS[0]}"
     asahi_finder
 else
-    [[   $R  ]] || die "Only partitions ars allowed for enctiption, not a whole device: ${ARGS[0]}"
+    [[   $R  ]] || die "Only partitions are allowed for encryption, not a whole device: ${ARGS[0]}"
     (( R > 3 )) || die "The partition number should be greater than 4: ${ARGS[0]}"
     # S, E, B, R - numbers of corresponfing Stub-MacOS, EFI, Boot and Root partitions in the installation layout
     (( S=R-3, E=R-2, B=R-1 ))
