@@ -6,7 +6,7 @@ readme=${0%/*}/../README.md
 # This updates the USAGE section of README with the
 # output of `asahi-encrypt -h` (usage help):
 
-sed -ri '
+gsed -ri '
 /^# USAGE/,/^#/ {
     /^#/!d
     /^# USAGE/ {
