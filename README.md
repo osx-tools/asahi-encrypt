@@ -42,23 +42,23 @@ the script.
 Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
-  Where /dev/nvme0n1p{N} is the root partition of Asahi linux
+  Where /dev/nvme0n1p{N} is the root partition of Asahi Linux
 installation. The installation is expected to consist of four
 partitions:
-    /dev/nvme0n1p{N-3} - 2.5G apfs  Macos Boot Loader
+    /dev/nvme0n1p{N-3} - 2.5G apfs  macOS Boot Loader
     /dev/nvme0n1p{N-2} - 500M vfat  EFI
     /dev/nvme0n1p{N-1} - 1.0G ext4  Boot
-    /dev/nvme0n1p{N}   -      btrfs Root (will be encrypted)
+    /dev/nvme0n1p{N}   -      btrfs Root (to be encrypted)
 
-  You can easily determine suitable root partitions using
-one of the commands: 'asahi-encrypt -l' or 'lsblk -f'.
+  Determine suitable partitions with: 'asahi-encrypt -l'.
+Alternatively get detailed partition list with: 'lsblk -f'.
 Unencrypted root partitions of a typical Fedora Linux
 installation are usually labeled 'fedora'.
 
 OPTIONS:
-    -m  - Just mount target system on /mnt
-    -e  - Just encrypt target system, implies '-m'
-    -u  - Just unmount target system from /mnt
+    -m  - Mount target system on /mnt
+    -e  - Encrypt target system, implies '-m'
+    -u  - Unmount target system from /mnt
     -l  - List suitable root partitions and exit
     -h  - Display this help
 
@@ -78,7 +78,7 @@ It is required to accommodate LUKS header when partition will be encrypted.
 btrfs filesystem resize -32M /mnt
 ```
 
-## 2. Encrypt root partition inplace
+## 2. Encrypt root partition in place
 The root partition is encrypted, partition data will be preserved.
 
 ``` sh
@@ -176,7 +176,7 @@ OS, because encription of running system is not allowed yet.
 >>>> Shrinking the target root filesystem to accommodate LUKS header
 >Resize device id 1 (/dev/nvme0n1p6) from 55.79GiB to 55.76GiB
 >>>> Unmounting the target system from /mnt
->>>> Encrypting the target root partition inplace
+>>>> Encrypting the target root partition in place
 >
 >WARNING!
 >========
@@ -233,7 +233,7 @@ installations on your machine on `/mnt`.
 >/dev/nvme0n1p14 crypto_LUKS 11.1G.
 >```
 
-In this example there are two Asahi linux installations other than
+In this example there are two Asahi Linux installations other than
 currently running one. You can also use extended view of all your
 partitions using `lsblk -f`:
 
