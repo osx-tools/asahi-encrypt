@@ -194,7 +194,7 @@ check_installation() {
 
 check_requirements() {
     local bin
-    for bin in /usr/sbin/btrfs /usr/sbin/cryptsetup; do
+    for bin in /usr/sbin/btrfs /usr/sbin/cryptsetup /usr/bin/partprobe; do
         [[ -x $bin ]] || die "Required binary is missing from the current system: $bin"
     done
     for bin in /usr/sbin/grub2-mkconfig /usr/bin/dracut /usr/sbin/grubby; do
