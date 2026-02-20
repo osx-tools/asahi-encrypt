@@ -250,7 +250,7 @@ asahi_encrypter() {
         done
         [[ $kver ]] || die "Failed to determine latest kernel version of target system"
         sudo chroot "$CHROOT" grub2-mkconfig -o "$grub_cfg" && \
-        sudo chroot "$CHROOT" dracut -f --kver "$kver" \
+        sudo chroot "$CHROOT" dracut -f --kver "$kver" --tmpdir /tmp \
             || die "Failed to rebuild initramfs"
         msg "Disabling selinux enforcing for the target system until next boot"
         sudo chroot "$CHROOT" grubby --update-kernel ALL --args enforcing=0 \
