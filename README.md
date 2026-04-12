@@ -43,12 +43,24 @@ Usage: asahi-encrypt /dev/nvme0n1p{N} [OPTIONS]
        asahi-encrypt -l [/dev/nvme0n1]
 
   Where /dev/nvme0n1p{N} is the root partition of Asahi Linux
-installation. The installation is expected to consist of four
-partitions:
+installation, which is expected to consist of 4 partitions:
     /dev/nvme0n1p{N-3} - 2.5G apfs  macOS Boot Loader
     /dev/nvme0n1p{N-2} - 500M vfat  EFI
     /dev/nvme0n1p{N-1} - 1.0G ext4  Boot
-    /dev/nvme0n1p{N}   -      btrfs Root (to be encrypted)
+    /dev/nvme0n1p{N}   -     btrfs  Root (to be encrypted)
+
+* or Asahi Alarm installation, which consist of 3 partitions:
+*    /dev/nvme0n1p{N-2} - 2.5G apfs  macOS Boot Loader
+*    /dev/nvme0n1p{N-1} - 500M vfat  EFI
+*    /dev/nvme0n1p{N}   -      ext4  Root (to be encrypted)
+*
+* NOTE!! DON'T USE IT FOR Asahi Alarm! IT IS NOT IMPLEMENTED
+*          YET AND SURELY MAKE YOUR SYSTEM UNBOOTABLE!
+*
+* If you need it please read and reopen this issue:
+*  https://github.com/osx-tools/asahi-encrypt/issues/2
+* the cooperation with Asahi Alarm developers or complex
+* workaraound described in the issue required.
 
   Determine suitable partitions with: 'asahi-encrypt -l'.
 Alternatively get detailed partition list with: 'lsblk -f'.

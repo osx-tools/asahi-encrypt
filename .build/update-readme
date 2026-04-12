@@ -3,10 +3,12 @@
 script=${0%/*}/../bin/asahi-encrypt
 readme=${0%/*}/../README.md
 
+which gsed >/dev/null && SED=gsed || SED=sed
+
 # This updates the USAGE section of README with the
 # output of `asahi-encrypt -h` (usage help):
 
-gsed -ri '
+$SED -ri '
 /^# USAGE/,/^#/ {
     /^#/!d
     /^# USAGE/ {
