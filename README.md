@@ -54,7 +54,7 @@ installation, which is expected to consist of 4 partitions:
 *    /dev/nvme0n1p{N-1} - 500M vfat  EFI
 *    /dev/nvme0n1p{N}   -      ext4  Root (to be encrypted)
 *
-* NOTE!! DON'T USE IT FOR Asahi Alarm! IT IS NOT IMPLEMENTED
+* NOTE!! DO NOT USE IT FOR Asahi Alarm! IT IS NOT IMPLEMENTED
 *          YET AND SURELY MAKE YOUR SYSTEM UNBOOTABLE!
 *
 * If you need it please read and reopen this issue:
