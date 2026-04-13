@@ -9,6 +9,7 @@ LUKS_HDR_BYTES=$[ 32*1024*1024 ]
 USAGE_SHORT="Usage: ${0##*/} /dev/nvme0n1p{N} [OPTIONS]"
 CUR_ROOT=`findmnt -nvo SOURCE -M /` || die
 ERR_LOG=/tmp/${0##*/}-$$.log
+UMOUNT_TIMEOUT=10
 unset action_{mount,encrypt,umount} ARGS raw_dev dev size type uuid luks_name
 
 # Parsing the command line
@@ -114,7 +115,11 @@ EOF
 chroot_umount() {
     if  mountpoint -q "$CHROOT"; then
         msg "Unmounting the target system from $CHROOT"
-        sudo umount -R "$CHROOT" || die "Failed to recursively unmount directory: $CHROOT"
+        local start=$SECONDS
+        while ! sudo umount -R "$CHROOT"; do
+            (( SECONDS < start + UMOUNT_TIMEOUT )) || die "Failed to recursively unmount directory: $CHROOT"
+            sleep 0.6
+        done
     fi
     # Check if target partitions are mounted somewhere else
     local mps=( `xargs -n1 findmnt -no TARGET <<<"${dev[E]} ${dev[B]} ${dev[R]}" | sort -r` )
