@@ -8,6 +8,7 @@ CHROOT=/mnt
 LUKS_HDR_BYTES=$[ 32*1024*1024 ]
 USAGE_SHORT="Usage: ${0##*/} /dev/nvme0n1p{N} [OPTIONS]"
 ERR_LOG=/tmp/${0##*/}-$$.log
+UMOUNT_TIMEOUT=10
 unset action_{mount,encrypt,umount} ARGS layout_{names,specs}
 
 # Supported layouts (S, E, B, R - corresponds to Stub-MacOS, EFI, Boot and Root partitions of the installation)
@@ -36,7 +37,7 @@ installation, which is expected to consist of 4 partitions:
 *    /dev/nvme0n1p{N-1} - 500M vfat  EFI
 *    /dev/nvme0n1p{N}   -      ext4  Root (to be encrypted)
 *
-* NOTE!! DON'T USE IT FOR Asahi Alarm! IT IS NOT IMPLEMENTED
+* NOTE!! DO NOT USE IT FOR Asahi Alarm! IT IS NOT IMPLEMENTED
 *          YET AND SURELY MAKE YOUR SYSTEM UNBOOTABLE!
 *
 * If you need it please read and reopen this issue:
@@ -138,7 +139,11 @@ EOF
 chroot_umount() {
     if  mountpoint -q "$CHROOT"; then
         msg "Unmounting the target system from $CHROOT"
-        sudo umount -R "$CHROOT" || die "Failed to recursively unmount directory: $CHROOT"
+        local start=$SECONDS
+        while ! sudo umount -R "$CHROOT"; do
+            (( SECONDS < start + UMOUNT_TIMEOUT )) || die "Failed to recursively unmount directory: $CHROOT"
+            sleep 0.6
+        done
     fi
     # Check if target partitions are mounted somewhere else
     local mps=( `xargs -n1 findmnt -no TARGET <<<"${dev[E]} ${dev[B]} ${dev[R]}" | sort -r` )
@@ -217,7 +222,7 @@ read_partitions() {
             for ((i=0; i<lsize; i++)); do
                 [[ ${type[p+i]} =~ ^(${fs[i]})$ && ${size[p+i]} =~ ^[0-9]+$ ]] || continue 2
             done
-            # clearing up the previously detected installations on the same partitions so that latest detections take precedence
+            # clearing up the previously detected installations on the same partitions so that the latest detections take precedence
             for ((i=0; i<lsize; i++)); do
                 (( i == R )) || inst_name[p+i]= inst_spec[p+i]=
             done
